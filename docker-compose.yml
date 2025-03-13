@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  t2-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: t2_builder
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - JOBS=2  # Ограничение до 2 ядер
+    tty: true
