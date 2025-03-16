@@ -9,6 +9,11 @@ RUN apt-get update && apt-get install -y \
     tar \
     libncurses5-dev \
     libncursesw5-dev \
+    gawk \
+    bash \
+    make \
+    gcc \
+    binutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем рабочую директорию

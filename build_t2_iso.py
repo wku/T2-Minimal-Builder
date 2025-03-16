@@ -22,16 +22,32 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
+
+
 def log_and_run_command(command, error_message):
-    """Выполняет команду и логирует результат."""
-    logger.info(f"Выполняем команду: {' '.join(command)}")
-    try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-        logger.info(f"Команда выполнена успешно: {result.stdout}")
+    """Выполняет команду и выводит результат в реальном времени."""
+    logger.info (f"Выполняем команду: {' '.join (command)}")
+    process = subprocess.Popen (command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    while True:
+        stdout_line = process.stdout.readline ()
+        stderr_line = process.stderr.readline ()
+
+        if stdout_line:
+            logger.info (stdout_line.strip ())
+        if stderr_line:
+            logger.info (stderr_line.strip ())  # Меняем ERROR на INFO для stderr
+
+        if process.poll () is not None and not stdout_line and not stderr_line:
+            break
+
+    if process.returncode == 0:
+        logger.info ("Команда выполнена успешно.")
         return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"{error_message}: {e.stderr}")
+    else:
+        logger.error (f"{error_message}: команда завершилась с кодом {process.returncode}")
         return False
+
 
 def check_file_exists(file_path, description):
     """Проверяет существование файла и логирует результат."""
@@ -103,9 +119,13 @@ def main():
     if not check_dependencies():
         return
 
-    # 1. Скачивание архива T2 SDE
+    # Объявляем переменные перед использованием
     t2_url = "https://dl.t2sde.org/source/t2-24.6.tar.bz2"
     t2_archive = "t2-24.6.tar.bz2"
+    t2_dir = "t2-24.6"  # Перемещаем сюда, перед первым использованием
+
+    # 1. Скачивание архива T2 SDE
+    print("Step 1: Downloading T2 SDE archive...")
     if not check_file_exists(t2_archive, "архива T2 SDE"):
         if not log_and_run_command(["wget", t2_url], "Ошибка при скачивании архива T2 SDE"):
             return
@@ -113,7 +133,7 @@ def main():
         logger.info("Архив T2 SDE уже существует, пропускаем скачивание.")
 
     # 2. Распаковка архива
-    t2_dir = "t2-24.6"
+    print("Step 2: Extracting T2 SDE archive...")
     if not check_file_exists(t2_dir, "распакованной директории T2 SDE"):
         if not log_and_run_command(["tar", "-xjf", t2_archive], "Ошибка при распаковке архива T2 SDE"):
             return
@@ -121,6 +141,7 @@ def main():
         logger.info("Директория T2 SDE уже распакована, пропускаем распаковку.")
 
     # 3. Подготовка конфигурационного каталога
+    print("Step 3: Preparing configuration directory...")
     config_dir = "config/minimal"
     if not remove_directory(config_dir, "config/minimal"):
         return
@@ -128,10 +149,12 @@ def main():
         return
 
     # 4. Смена рабочей директории на t2-24.6
+    print("Step 4: Changing to T2 directory...")
     if not change_directory(t2_dir):
         return
 
     # 5. Запуск Config
+    print("Step 5: Running Config script...")
     config_script = "scripts/Config"
     if not check_file_exists(config_script, "скрипта Config"):
         logger.error("Скрипт Config не найден в директории t2-24.6/scripts.")
@@ -141,6 +164,7 @@ def main():
         return
 
     # 6. Сборка образа с ограничением числа задач
+    print(f"Step 6: Building image with {jobs} jobs... This may take a while.")
     build_script = "scripts/Build-Target"
     if not check_file_exists(build_script, "скрипта Build-Target"):
         logger.error("Скрипт Build-Target не найден в директории t2-24.6/scripts.")
